@@ -1,0 +1,29 @@
+Data Preprocessing
+
+Set the 'Date' column as the index and drop irrelevant columns like 'Open', 'High', 'Low', 'Volume', 'Change%'.
+Plot the closing price for visualization and explore the data's statistical properties.
+Check stationarity through rolling statistics and the Dickey-Fuller test.
+
+
+Time Series Analysis
+Visualize rolling statistics.
+Conduct Dickey-Fuller test for stationarity.
+Perform differencing to achieve stationarity if needed.
+Decompose the time series into trend, seasonality, and residuals.
+
+
+Model Building and Forecasting
+Fit an ARIMA model to the training data.
+Evaluate the model's performance using metrics like RMSE, MAPE, ME, and MAE.
+Visualize the forecasts against actual data.
+
+
+Additional Models and Comparison
+Implement and evaluate other models like Simple Exponential Smoothing, Holt Method, and Holt-Winter Method.
+Compare model performance using RMSE, MAPE, ME, and MAE metrics.
+Present the results in tabular format for easy comparison.
+
+
+Forecasting Beyond Available Data
+Forecast stock prices for a specified future date range using the final ARIMA model.
+Update the dataframe with forecasted values and visualize the forecasted period against the original data.
