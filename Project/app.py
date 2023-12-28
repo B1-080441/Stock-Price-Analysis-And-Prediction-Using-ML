@@ -10,14 +10,16 @@ app = Flask(__name__)
 with open('Reliance_Stock.pkl', 'rb') as file:
     model_arima = pickle.load(file)
 
+
 # Assuming 'train_data' and 'test_data' are your training and testing datasets
 # Replace this with your actual data
-#train_data = stock_data.iloc[:7447] # Your training data
-#test_data = stock_data.iloc[7447:8180]  # Your testing data
+# train_data = stock_data.iloc[:7447] # Your training data
+# test_data = stock_data.iloc[7447:8180]  # Your testing data
 
 @app.route('/')
 def index():
     return render_template('index.html')
+
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -34,11 +36,10 @@ def predict():
     except Exception as e:
         # Print the error message to the console
         print("Error:", str(e))
-        
+
         # If an error occurs, render the error page
         return render_template('error.html', error_message=str(e))
 
 
 if __name__ == '__main__':
     app.run(debug=True)
-

@@ -4,7 +4,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Price Forecast</title>
+    <title> Reliance Stock Price Prediction </title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -51,9 +51,9 @@
 <body>
     <h1>Stock Price Forecast</h1>
     <form action="/predict" method="post">
-        <label for="start">Enter Start Index:</label>
+        <label for="start">Enter Start Day:</label>
         <input type="text" id="start" name="start" required>
-        <label for="end">Enter End Index:</label>
+        <label for="end">Enter End Day:</label>
         <input type="text" id="end" name="end" required>
         <button type="submit">Predict</button>
     </form>

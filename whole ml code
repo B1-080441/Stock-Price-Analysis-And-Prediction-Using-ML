@@ -1,0 +1,452 @@
+i have one "reliance_stock_data_(1990-2023).csv" file which contains
+stock data with 8180 rows as this is time series data  here we are making the ARIMA model for forcasting the next stock price a range 
+upto next 3 months.
+
+but during development of this getting some problems i mentioned it
+in "Note:" resolve the problems very neatly. and provide best possible solution
+
+do the required changes.
+
+import os
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import warnings
+warnings.filterwarnings('ignore')
+import datetime
+import matplotlib.pyplot as plt
+from statsmodels.tsa.stattools import adfuller
+from statsmodels.tsa.seasonal import seasonal_decompose
+from pmdarima.arima import auto_arima
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+import math
+
+import statsmodels.api as sm
+
+from statsmodels.tsa.stattools import acf, pacf
+from math import sqrt
+from pandas import read_csv
+from statsmodels.tsa.arima.model import ARIMA
+from pandas.tseries.offsets import DateOffset
+
+
+stock_data = pd.read_csv('reliance_stock_data_(1990-2023).csv')
+stock_data
+
+
+# Assuming stock_data is your DataFrame
+stock_data.set_index(pd.to_datetime(stock_data['Date']), inplace=True)  # Set 'Date' as index
+stock_data.drop(columns=['Date'], inplace=True)  # Drop the 'Date' column
+
+
+stock_data = stock_data.drop(['Open','High','Low','Volume','Change%'], axis=1)
+stock_data
+
+
+#plot close price
+plt.figure(figsize=(10,6))
+plt.grid(True)
+plt.xlabel('Year')
+plt.ylabel('Close Prices')
+plt.plot(stock_data['Price'])
+plt.title('Reliance Stock closing price')
+plt.show()
+
+
+X = stock_data.values
+split = round(len(X) / 2)
+X1, X2 = X[0:split], X[split:]
+mean1, mean2 = X1.mean(), X2.mean()
+var1, var2 = X1.var(), X2.var()
+print('mean1=%f, mean2=%f' % (mean1, mean2))
+print('variance1=%f, variance2=%f' % (var1, var2))
+
+
+
+
+def TestStationaryPlot(stock_data):
+    rol_mean = stock_data.rolling(window = 25, center = False).mean()
+    rol_std = stock_data.rolling(window = 25, center = False).std()
+    
+    plt.plot(stock_data, color = 'blue',label = 'Original Data')
+    plt.plot(rol_mean, color = 'red', label = 'Rolling Mean')
+    plt.plot(rol_std, color ='black', label = 'Rolling Std')
+    plt.xticks(fontsize = 10)
+    plt.yticks(fontsize = 10)
+    
+    plt.xlabel('Time in Years', fontsize = 10)
+    plt.ylabel('Closing Price', fontsize = 10)
+    plt.legend(loc='best', fontsize = 10)
+    plt.title('Rolling Mean & Standard Deviation', fontsize = 10)
+    plt.show(block= True)
+    
+    
+TestStationaryPlot(stock_data)
+
+
+
+# null Hypothesis : Data is stationary
+#alternate hypothesis : Data is not stationary
+def TestStationaryAdfuller(stock_data, cutoff=0.01):
+    stock_data_test = adfuller(stock_data, autolag='AIC')
+    stock_data_test_output = pd.Series(stock_data_test[0:4], index=['Test Statistic', 'p-value', 'Lags Used', 'Number of Observations Used'])
+
+    for key, value in stock_data_test[4].items():
+        stock_data_test_output[f'Critical Value ({key})'] = value
+    print(stock_data_test_output)
+
+    if stock_data_test[1] <= cutoff:
+        print("Failed to reject null hypothesis. Data is stationary")
+    else:
+        print("Failed to accept null hypothesis. Data is non-stationary")
+
+
+
+TestStationaryAdfuller(stock_data)
+
+
+
+
+moving_avg = stock_data.rolling(20).mean()
+plt.plot(stock_data)
+plt.plot(moving_avg, color='red')
+plt.xticks(fontsize = 10)
+plt.yticks(fontsize = 10)
+plt.xlabel('Time (years)', fontsize = 10)
+plt.ylabel('Reliance Stock Price  (in Rs.)', fontsize = 10)
+plt.title('Reliance Stock Price ', fontsize = 10)
+plt.show()
+
+
+
+
+moving_avg_diff = stock_data - moving_avg
+moving_avg_diff.head(15)
+
+
+
+moving_avg_diff.dropna(inplace=True)
+TestStationaryPlot(moving_avg_diff)
+
+
+
+TestStationaryAdfuller(moving_avg_diff)
+
+
+
+# Assuming 'stock_data' is your pandas Series/DataFrame containing the stock data
+
+# Original Series
+plt.plot(stock_data)
+plt.title('Original Series')
+plt.show()
+
+# 1st Differencing
+stock_data_first_difference = stock_data.diff()
+plt.plot(stock_data_first_difference)
+plt.title('1st Order Differencing')
+plt.show()
+
+# 2nd Differencing
+stock_data_second_difference = stock_data.diff().diff()
+plt.plot(stock_data_second_difference)
+plt.title('2nd Order Differencing')
+plt.show()
+
+
+
+stock_data_first_difference = stock_data - stock_data.shift(1)  
+TestStationaryPlot(stock_data_first_difference.dropna(inplace=False))
+
+TestStationaryAdfuller(stock_data_first_difference.dropna(inplace=False))
+
+
+decomposition = seasonal_decompose(stock_data,period=350,model="multiplicable")
+
+trend = decomposition.trend
+seasonal = decomposition.seasonal
+residual = decomposition.resid
+
+plt.subplot(411)
+plt.plot(stock_data, label='Original')
+plt.legend(loc='best')
+plt.subplot(412)
+plt.plot(trend, label='Trend')
+plt.legend(loc='best')
+plt.subplot(413)
+plt.plot(seasonal,label='Seasonality')
+plt.legend(loc='best')
+plt.subplot(414)
+plt.plot(residual, label='Residuals')
+plt.legend(loc='best')
+plt.tight_layout()
+
+
+
+
+fig = plt.figure(figsize=(12, 25))  # Adjusting the figure size to fit both plots
+ax1 = fig.add_subplot(211)
+fig = sm.graphics.tsa.plot_acf(stock_data_first_difference.dropna(inplace=False), lags=35, ax=ax1)  # Change your_data_column to your actual data column
+ax1.set_title('Autocorrelation Function (ACF)')
+
+ax2 = fig.add_subplot(212)
+fig = sm.graphics.tsa.plot_pacf(stock_data_first_difference.dropna(inplace=False), lags=35, ax=ax2)  # Change your_data_column to your actual data column
+ax2.set_title('Partial Autocorrelation Function (PACF)')
+
+plt.tight_layout()
+plt.show()
+
+
+train_data = stock_data.iloc[:7689]
+test_data = stock_data.iloc[7689:8180]
+train_data
+
+
+# Build Model
+model_arima = ARIMA(train_data['Price'],order = (2,1,1))
+model_arima = model_arima.fit()
+model_arima.summary()
+
+start = len(train_data)
+end = len(train_data)+len(test_data)-1
+pred_arima = model_arima.predict(start=start,end=end)
+print(pred_arima)
+
+
+
+def forecast_accuracy(forecast, actual):
+    mape = np.mean(np.abs(forecast - actual)/(actual))  # MAPE
+    me = np.mean(forecast - actual)             # ME
+    mae = np.mean(np.abs(forecast - actual))    # MAE
+    rmse = np.mean((forecast - actual)**2)**.5  # RMSE
+    return({'mape':mape, 'me':me, 'mae': mae, 'rmse':rmse})
+    
+    
+ns_arima_acc = forecast_accuracy(pred_arima.values, test_data.values)
+ns_arima_acc
+    
+Note :in the below code i am not getting appropriate forcasted line with test_data
+ 
+please adjust the below code accordingly
+ 
+plt.figure(figsize=(12,5), dpi=100)
+plt.plot(train_data, label='training')
+plt.plot(test_data, label='actual')
+plt.plot(pred_arima, label='forecast')
+plt.title('Forecast vs Actuals')
+plt.legend(loc='upper left', fontsize=8)
+plt.show()
+    
+    
+Note :in the below code i am not getting appropriate forcasted line with test_data
+ 
+please adjust the below code accordingly
+    
+    
+# Make a pandas series
+# Plot
+plt.figure(figsize=(10,5), dpi=100)
+plt.plot(train_data, label='training data')
+plt.plot(test_data, label='Actual Stock Price')
+plt.plot(pred_arima, label='Predicted Stock Price')
+plt.title('Reliance Stock Price Prediction')
+plt.xlabel('Time')
+plt.ylabel('Reliance Stock Price')
+plt.legend(loc='upper left', fontsize=8)
+plt.show()
+
+
+
+Model_arima = ARIMA(train_data['Price'],order = (4,1,3))
+Model_arima = Model_arima.fit()
+Model_arima.summary()
+
+
+
+start = len(train_data)
+end = len(train_data)+len(test_data)-1
+Pred_arima = Model_arima.predict(start=start,end=end)
+print(Pred_arima)
+
+
+Ns_arima_acc = forecast_accuracy(Pred_arima.values, test_data.values)
+Ns_arima_acc
+
+
+Note :in the below code i am not getting appropriate forcasted line with test_data.
+ 
+please adjust the below code accordingly.
+
+plt.figure(figsize=(12,5), dpi=100)
+plt.plot(train_data, label='training')
+plt.plot(test_data, label='actual')
+plt.plot(Pred_arima, label='forecast')
+plt.title('Forecast vs Actuals')
+plt.legend(loc='upper left', fontsize=8)
+plt.show()
+
+
+from statsmodels.tsa.holtwinters import SimpleExpSmoothing
+from statsmodels.tsa.holtwinters import Holt
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
+
+SES = SimpleExpSmoothing(train_data['Price']).fit(smoothing_level = 0.2)
+
+pred_ses = SES.predict(start = len(train_data),end = len(train_data)+len(test_data)-1)
+
+ns_ses_acc = forecast_accuracy(pred_ses.values,test_data.values)
+ns_ses_acc
+
+
+Note :in the below code i am not getting appropriate forcasted line with test_data.
+ 
+please adjust the below code accordingly.
+
+plt.figure(figsize=(12,5), dpi=100)
+plt.plot(train_data, label='training')
+plt.plot(test_data, label='actual')
+plt.plot(pred_ses, label='forecast')
+plt.title('Forecast vs Actuals')
+plt.legend(loc='upper left', fontsize=8)
+plt.show()
+
+
+HLT= Holt(train_data["Price"]).fit(smoothing_level=0.8, smoothing_slope=0.2)
+
+
+pred_holt = HLT.predict(start = len(train_data),end = len(train_data)+len(test_data)-1)
+
+
+ns_hlt_acc = forecast_accuracy(pred_holt.values,test_data.values)
+ns_hlt_acc
+
+
+Note :in the below code i am not getting appropriate forcasted line with test_data.
+ 
+please adjust the below code accordingly.
+
+plt.figure(figsize=(12,5), dpi=100)
+plt.plot(train_data, label='training')
+plt.plot(test_data, label='actual')
+plt.plot(pred_holt, label='forecast')
+plt.title('Forecast vs Actuals')
+plt.legend(loc='upper left', fontsize=8)
+plt.show()
+
+
+HLW = ExponentialSmoothing(train_data['Price'],seasonal='add',trend='add',seasonal_periods=2).fit()
+
+pred_hlw=HLW.predict(start = len(train_data),end = len(train_data)+len(test_data)-1)
+
+
+ns_hlw_acc = forecast_accuracy(pred_hlw.values,test_data.values)
+ns_hlw_acc
+
+Note :in the below code i am not getting appropriate forcasted line with test_data.
+ 
+please adjust the below code accordingly.
+
+plt.figure(figsize=(12,5), dpi=100)
+plt.plot(train_data, label='training')
+plt.plot(test_data, label='actual')
+plt.plot(pred_hlw, label='forecast')
+plt.title('Forecast vs Actuals')
+plt.legend(loc='upper left', fontsize=8)
+plt.show()
+
+
+data = {"MODEL":pd.Series(["ARIMA(2,1,1)","ARIMA(4,1,3)","Simple exponential smoothing","Holt Method","Holt-Winter Method"]),
+"RMSE_values":pd.Series([ns_arima_acc["rmse"],Ns_arima_acc["rmse"],ns_ses_acc["rmse"],ns_hlt_acc["rmse"],ns_hlw_acc["rmse"]]),
+"MAPE_values":pd.Series([ns_arima_acc["mape"],Ns_arima_acc["mape"],ns_ses_acc["mape"],ns_hlt_acc["mape"],ns_hlw_acc["mape"]]),
+"ME_values":pd.Series([ns_arima_acc["me"],Ns_arima_acc["me"],ns_ses_acc["me"],ns_hlt_acc["me"],ns_hlw_acc["me"]]),
+"MAE_values":pd.Series([ns_arima_acc["mae"],Ns_arima_acc["mae"],ns_ses_acc["mae"],ns_hlt_acc["mae"],ns_hlw_acc["mae"]])}
+
+table_rmse=pd.DataFrame(data)
+table_rmse.sort_values(['RMSE_values'])
+
+
+tata = {"MODEL":pd.Series(["ARIMA(2,1,1)","ARIMA(4,1,3)","Simple exponential smoothing","Holt Method","Holt-Winter Method"]),
+"RMSE_values":pd.Series([ns_arima_acc["rmse"],Ns_arima_acc["rmse"],ns_ses_acc["rmse"],ns_hlt_acc["rmse"],ns_hlw_acc["rmse"]]),
+"MAPE_values":pd.Series([ns_arima_acc["mape"],Ns_arima_acc["mape"],ns_ses_acc["mape"],ns_hlt_acc["mape"],ns_hlw_acc["mape"]]),
+"ME_values":pd.Series([ns_arima_acc["me"],Ns_arima_acc["me"],ns_ses_acc["me"],ns_hlt_acc["me"],ns_hlw_acc["me"]]),
+"MAE_values":pd.Series([ns_arima_acc["mae"],Ns_arima_acc["mae"],ns_ses_acc["mae"],ns_hlt_acc["mae"],ns_hlw_acc["mae"]])}
+
+table_mape=pd.DataFrame(tata)
+table_mape.sort_values(['MAPE_values'])
+
+
+final_arima = ARIMA(stock_data['Price'],order = (2,1,1))
+final_arima = final_arima.fit()
+final_arima.summary()
+
+
+final_arima.fittedvalues.tail(25)
+
+plt.figure(figsize=(12,5), dpi=100)
+plt.plot(stock_data, label='original')
+plt.title('Original')
+
+plt.plot(final_arima.fittedvalues, label='forecast')
+plt.title('Forecast')
+plt.legend(loc='upper left', fontsize=8)
+plt.show()
+
+
+# Assuming 'stock_data' is your DataFrame with the 'Price' column as the index
+stock_data.index = pd.to_datetime(stock_data.index)
+
+# Generate future dates within the specified range
+start_date = pd.to_datetime('2023-12-16')
+end_date = pd.to_datetime('2024-02-15')
+
+# Combine existing index dates with the specified range for forecasting
+all_dates = stock_data.index.union(pd.date_range(start=start_date, end=end_date, freq='D'))
+future_df = pd.DataFrame(index=all_dates, columns=stock_data.columns)
+
+# Perform ARIMA forecasting within the selected range if available in the dataset
+start_idx = max(stock_data.index.min(), start_date)
+end_idx = min(stock_data.index.max(), end_date)
+
+# Ensure the indices are within the available range in the dataset
+if start_idx <= end_idx:
+    forecast = final_arima.predict(start=start_idx, end=end_idx, dynamic=True)  # Use 'final_arima' directly for prediction
+
+    # Update future_df with the forecast values within the selected range
+    future_df.loc[start_idx:end_idx, 'Price'] = forecast
+
+    # Plotting the original data and the forecast for the selected range
+    plt.figure(figsize=(12, 5), dpi=100)
+    plt.plot(stock_data.index, stock_data['Price'], label='Original')
+    plt.plot(future_df['Price'], label='Forecast')
+
+    plt.title('Forecast from 2023-12-16 to 2024-02-15')
+    plt.legend(loc='upper left', fontsize=8)
+    plt.show()
+else:
+    print("Selected date range is outside the available data range. Please adjust.")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
